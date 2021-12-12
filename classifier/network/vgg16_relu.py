@@ -6,9 +6,7 @@ import torch.nn.functional as F
 
 
 class VGG16(Module):
-    def __init__(self,
-                 n_way: int,
-                 depth: Tuple[int, int, int],):
+    def __init__(self,):
         super(VGG16, self).__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=3, padding=1),

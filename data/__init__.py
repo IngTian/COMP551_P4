@@ -1,10 +1,11 @@
 import pickle
-import torch
-from torch import Tensor, device
-from typing import List, Tuple, Callable, Dict, Any, Union, Optional, Iterable
-from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
+from typing import List, Any, Union, Optional
+
+import torch
+from torch import Tensor
 from torch import randperm
+from torch.utils.data import Dataset
 
 TRAINING_X = "images_l.pkl"
 TRAINING_Y = "labels_l.pkl"
@@ -26,7 +27,7 @@ class LabeledDataset(Dataset):
 
     def __str__(self):
         return f"---Dataset name: {self.name}---" \
-                f"Number of entries: {len(self.x)}---"
+               f"Number of entries: {len(self.x)}---"
 
 
 class UnlabeledDataset(Dataset):
@@ -47,6 +48,7 @@ class UnlabeledDataset(Dataset):
         return f"---Dataset name: {self.name}---" \
                f"Number of entries: {len(self.x)}---"
 
+
 class WrapperDataset(Dataset):
     def __init__(self, datasets: List[Dataset], length: int):
         self.datasets = datasets
@@ -57,6 +59,7 @@ class WrapperDataset(Dataset):
 
     def __len__(self):
         return self.len
+
 
 class MixedDataset(Dataset):
     def __init__(self, labeled: LabeledDataset,
@@ -70,14 +73,15 @@ class MixedDataset(Dataset):
         self.epoch_ratio_over_unlabeled = epoch_ratio_over_unlabeled
 
     def __getitem__(self, index):
-        unlabeled_x_multiple = [self.unlabeled_x[(index * self.epoch_ratio_over_unlabeled + i) % len(self.unlabeled_x)][0] for i in
-                    range(self.epoch_ratio_over_unlabeled)]
-        unlabeled_x_processed_multiple = [self.unlabeled_x[(index * self.epoch_ratio_over_unlabeled + i) % len(self.unlabeled_x)][1] for i in
-                    range(self.epoch_ratio_over_unlabeled)]
+        unlabeled_x_multiple = [
+            self.unlabeled_x[(index * self.epoch_ratio_over_unlabeled + i) % len(self.unlabeled_x)][0] for i in
+            range(self.epoch_ratio_over_unlabeled)]
+        unlabeled_x_processed_multiple = [
+            self.unlabeled_x[(index * self.epoch_ratio_over_unlabeled + i) % len(self.unlabeled_x)][1] for i in
+            range(self.epoch_ratio_over_unlabeled)]
 
         return self.labeled_x[index], self.labeled_y[index], \
                unlabeled_x_multiple, unlabeled_x_processed_multiple
-
 
     def __len__(self):
         return len(self.labeled_x)
@@ -88,7 +92,7 @@ class MixedDataset(Dataset):
 
 
 def partition(data: Union[LabeledDataset, UnlabeledDataset], splits: List[int], shuffle=True) \
-    -> List[Union[LabeledDataset, UnlabeledDataset]]:
+        -> List[Union[LabeledDataset, UnlabeledDataset]]:
     """
     partition the data given the indices
     :param shuffle:
@@ -171,5 +175,3 @@ def read_test(folder_path: Path) -> UnlabeledDataset:
     with open(str(folder_path / TEST), 'rb') as f:
         x = torch.from_numpy(pickle.load(f))
     return UnlabeledDataset(x, name="Test")
-
-

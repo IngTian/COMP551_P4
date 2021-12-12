@@ -1,14 +1,10 @@
 from data import *
-import torch.nn as nn
 from torch.nn import Module, CrossEntropyLoss, functional
 from torch.optim import SGD, Optimizer, Adam
 from torch.utils.data import DataLoader
 from torch import device, Tensor
 import torch
 from pathlib import Path
-import pandas as pd
-import matplotlib.pyplot as plt
-import cv2
 from torch.utils.data import random_split
 
 TrainingPlugin = Callable[[Any, int], None]
