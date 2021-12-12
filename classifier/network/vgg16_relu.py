@@ -36,13 +36,6 @@ class VGG16(Module):
             nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.MaxPool2d(2, 2),
-
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.MaxPool2d(2, 2),
         )
 
         self.dense = nn.Sequential(

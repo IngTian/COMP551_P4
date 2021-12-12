@@ -14,7 +14,7 @@ from classifier.metric import *
 import torchvision
 from torchvision import transforms
 
-TRAINED_MODELS_PATH = Path("trained-models")
+TRAINED_MODELS_PATH = Path("../drive/MyDrive/Colab Notebooks/COMP551/Project 4/vgg_exp_results")
 
 
 def get_mean_std(cifar):

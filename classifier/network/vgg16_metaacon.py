@@ -34,13 +34,6 @@ class VGG16_Meta_ACON(Module):
             nn.BatchNorm2d(512),
             acon.MetaAconC(512),
             nn.MaxPool2d(2, 2),
-
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
-            acon.MetaAconC(512),
-            nn.MaxPool2d(2, 2),
         )
 
         self.dense = nn.Sequential(
