@@ -37,7 +37,7 @@ class VGG16_ACON(Module):
         )
 
         self.dense = nn.Sequential(
-            nn.Linear(512, 4096),
+            nn.Linear(2048, 4096),
             nn.ReLU(),
             nn.Dropout(p=0.5),
             nn.Linear(4096, 4096),
