@@ -3,9 +3,8 @@ from typing import Callable, Any, List
 import torch
 import torch.nn as nn
 from torch import Tensor
-from acon import MetaAconC
 
-__all__ = ["ShuffleNetV2", "shufflenet_v2_x0_5_MetaACON"]
+__all__ = ["ShuffleNetV2", "shufflenet_v2_x0_5", "shufflenet_v2_x1_0", "shufflenet_v2_x1_5", "shufflenet_v2_x2_0"]
 
 model_urls = {
     "shufflenetv2_x0.5": "https://download.pytorch.org/models/shufflenetv2_x0.5-f707e7126e.pth",
@@ -47,7 +46,7 @@ class InvertedResidual(nn.Module):
                 nn.BatchNorm2d(inp),
                 nn.Conv2d(inp, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
                 nn.BatchNorm2d(branch_features),
-                MetaAconC(branch_features)
+                nn.ReLU(inplace=True),
             )
         else:
             self.branch1 = nn.Sequential()
@@ -62,12 +61,12 @@ class InvertedResidual(nn.Module):
                 bias=False,
             ),
             nn.BatchNorm2d(branch_features),
-            MetaAconC(branch_features),
+            nn.ReLU(inplace=True),
             self.depthwise_conv(branch_features, branch_features, kernel_size=3, stride=self.stride, padding=1),
             nn.BatchNorm2d(branch_features),
             nn.Conv2d(branch_features, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(branch_features),
-            MetaAconC(branch_features)
+            nn.ReLU(inplace=True),
         )
 
     @staticmethod
@@ -93,7 +92,7 @@ class ShuffleNetV2(nn.Module):
             self,
             stages_repeats: List[int],
             stages_out_channels: List[int],
-            num_classes: int = 100,
+            num_classes: int = 1000,
             inverted_residual: Callable[..., nn.Module] = InvertedResidual,
     ) -> None:
         super().__init__()
@@ -108,7 +107,7 @@ class ShuffleNetV2(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv2d(input_channels, output_channels, 3, 2, 1, bias=False),
             nn.BatchNorm2d(output_channels),
-            MetaAconC(output_channels)
+            nn.ReLU(inplace=True),
         )
         input_channels = output_channels
 
@@ -130,7 +129,7 @@ class ShuffleNetV2(nn.Module):
         self.conv5 = nn.Sequential(
             nn.Conv2d(input_channels, output_channels, 1, 1, 0, bias=False),
             nn.BatchNorm2d(output_channels),
-            MetaAconC(output_channels)
+            nn.ReLU(inplace=True),
         )
 
         self.fc = nn.Linear(output_channels, num_classes)
@@ -156,7 +155,7 @@ def _shufflenetv2(arch: str, pretrained: bool, progress: bool, *args: Any, **kwa
     return model
 
 
-def shufflenet_v2_x0_5_MetaACON(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ShuffleNetV2:
+def shufflenet_v2_x0_5(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ShuffleNetV2:
     """
     Constructs a ShuffleNetV2 with 0.5x output channels, as described in
     `"ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design"
@@ -165,5 +164,40 @@ def shufflenet_v2_x0_5_MetaACON(pretrained: bool = False, progress: bool = True,
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _shufflenetv2("shufflenetv2_x0.5_MetaACON", pretrained, progress, [4, 8, 4], [24, 48, 96, 192, 1024], **kwargs)
+    return _shufflenetv2("shufflenetv2_x0.5", pretrained, progress, [4, 8, 4], [24, 48, 96, 192, 1024], **kwargs)
 
+
+def shufflenet_v2_x1_0(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ShuffleNetV2:
+    """
+    Constructs a ShuffleNetV2 with 1.0x output channels, as described in
+    `"ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design"
+    <https://arxiv.org/abs/1807.11164>`_.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return _shufflenetv2("shufflenetv2_x1.0", pretrained, progress, [4, 8, 4], [24, 116, 232, 464, 1024], **kwargs)
+
+
+def shufflenet_v2_x1_5(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ShuffleNetV2:
+    """
+    Constructs a ShuffleNetV2 with 1.5x output channels, as described in
+    `"ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design"
+    <https://arxiv.org/abs/1807.11164>`_.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return _shufflenetv2("shufflenetv2_x1.5", pretrained, progress, [4, 8, 4], [24, 176, 352, 704, 1024], **kwargs)
+
+
+def shufflenet_v2_x2_0(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ShuffleNetV2:
+    """
+    Constructs a ShuffleNetV2 with 2.0x output channels, as described in
+    `"ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design"
+    <https://arxiv.org/abs/1807.11164>`_.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return _shufflenetv2("shufflenetv2_x2.0", pretrained, progress, [4, 8, 4], [24, 244, 488, 976, 2048], **kwargs)

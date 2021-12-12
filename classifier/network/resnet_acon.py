@@ -8,7 +8,7 @@ sys.path.insert(0,'../..')
 from acon import AconC
 
 
-__all__ = ['ResNet', 'resnet50_acon', 'resnet101_acon', 'resnet152_acon']
+__all__ = ['ResNet',  'resnet18_acon', 'resnet50_acon', 'resnet101_acon', 'resnet152_acon']
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
@@ -99,7 +99,7 @@ class Bottleneck_ACON(nn.Module):
             norm_layer = nn.BatchNorm2d
         width = int(planes * (base_width / 64.)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
-        self.conv1 = conv1x1(inplanes, width, stride)
+        self.conv1 = conv1x1(inplanes, width, stride, padding = 1, dilation = 0)
         self.bn1 = norm_layer(width)
         self.conv2 = conv3x3(width, width, 1, groups, dilation)
         self.bn2 = norm_layer(width)
@@ -139,7 +139,7 @@ class ResNet(nn.Module):
         self,
         block: Type[Union[BasicBlock_ACON, Bottleneck_ACON]],
         layers: List[int],
-        num_classes: int = 1000,
+        num_classes: int = 100,
         zero_init_residual: bool = False,
         groups: int = 1,
         width_per_group: int = 64,
@@ -252,6 +252,19 @@ def _resnet(
 ) -> ResNet:
     model = ResNet(block, layers, **kwargs)
     return model
+
+
+def resnet18_acon(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+    r"""ResNet-18 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return _resnet("resnet18_acon", BasicBlock_ACON, [2, 2, 2, 2], pretrained, progress, **kwargs)
+
+
+
 
 
 def resnet50_acon(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:

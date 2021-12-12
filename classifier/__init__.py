@@ -122,6 +122,8 @@ class NNClassifier(Classifier):
         :return: a network callable that can be passed to the NNClassifier constructor
         """
         self.network.load_state_dict(torch.load(folder_path / f"{epoch}.params"))
+        if (folder_path / "performance.pt").exists():
+            self._tmp['learning_path'] = torch.load(folder_path / "performance.pt")
 
     def set_optimizer(self, optimizer: OptimizerProfile):
         self.optim = optimizer.optim(self.network.parameters(), **optimizer.params)

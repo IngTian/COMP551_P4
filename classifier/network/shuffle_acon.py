@@ -1,161 +1,169 @@
+from typing import Callable, Any, List
+
 import torch
 import torch.nn as nn
-
-import sys
-sys.path.insert(0,'../..')
+from torch import Tensor
 from acon import AconC
 
-class ShuffleV2Block_ACON(nn.Module):
-    def __init__(self, inp, oup, mid_channels, *, ksize, stride):
-        super(ShuffleV2Block_ACON, self).__init__()
+__all__ = ["ShuffleNetV2", "shufflenet_v2_x0_5_ACONC"]
+
+model_urls = {
+    "shufflenetv2_x0.5": "https://download.pytorch.org/models/shufflenetv2_x0.5-f707e7126e.pth",
+    "shufflenetv2_x1.0": "https://download.pytorch.org/models/shufflenetv2_x1-5666bf0f80.pth",
+    "shufflenetv2_x1.5": None,
+    "shufflenetv2_x2.0": None,
+}
+
+
+def channel_shuffle(x: Tensor, groups: int) -> Tensor:
+    batchsize, num_channels, height, width = x.size()
+    channels_per_group = num_channels // groups
+
+    # reshape
+    x = x.view(batchsize, groups, channels_per_group, height, width)
+
+    x = torch.transpose(x, 1, 2).contiguous()
+
+    # flatten
+    x = x.view(batchsize, -1, height, width)
+
+    return x
+
+
+class InvertedResidual(nn.Module):
+    def __init__(self, inp: int, oup: int, stride: int) -> None:
+        super().__init__()
+
+        if not (1 <= stride <= 3):
+            raise ValueError("illegal stride value")
         self.stride = stride
-        assert stride in [1, 2]
 
-        self.mid_channels = mid_channels
-        self.ksize = ksize
-        pad = ksize // 2
-        self.pad = pad
-        self.inp = inp
+        branch_features = oup // 2
+        assert (self.stride != 1) or (inp == branch_features << 1)
 
-        outputs = oup - inp
-
-        branch_main = [
-            # pw
-            nn.Conv2d(inp, mid_channels, 1, 1, 0, bias=True),
-            nn.BatchNorm2d(mid_channels),
-            AconC(mid_channels),
-            # dw
-            nn.Conv2d(mid_channels, mid_channels, ksize, stride, pad, groups=mid_channels, bias=True),
-            nn.BatchNorm2d(mid_channels),
-            # pw-linear
-            nn.Conv2d(mid_channels, outputs, 1, 1, 0, bias=True),
-            nn.BatchNorm2d(outputs),
-            AconC(outputs),
-        ]
-        self.branch_main = nn.Sequential(*branch_main)
-
-        if stride == 2:
-            branch_proj = [
-                # dw
-                nn.Conv2d(inp, inp, ksize, stride, pad, groups=inp, bias=True),
+        if self.stride > 1:
+            self.branch1 = nn.Sequential(
+                self.depthwise_conv(inp, inp, kernel_size=3, stride=self.stride, padding=1),
                 nn.BatchNorm2d(inp),
-                # pw-linear
-                nn.Conv2d(inp, inp, 1, 1, 0, bias=True),
-                nn.BatchNorm2d(inp),
-                AconC(inp),
-            ]
-            self.branch_proj = nn.Sequential(*branch_proj)
+                nn.Conv2d(inp, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
+                nn.BatchNorm2d(branch_features),
+                AconC(branch_features)
+            )
         else:
-            self.branch_proj = None
+            self.branch1 = nn.Sequential()
 
-    def forward(self, old_x):
-        if self.stride==1:
-            x_proj, x = self.channel_shuffle(old_x)
-            return torch.cat((x_proj, self.branch_main(x)), 1)
-        elif self.stride==2:
-            x_proj = old_x
-            x = old_x
-            return torch.cat((self.branch_proj(x_proj), self.branch_main(x)), 1)
-
-    def channel_shuffle(self, x):
-        batchsize, num_channels, height, width = x.data.size()
-        assert (num_channels % 4 == 0)
-        x = x.reshape(batchsize * num_channels // 2, 2, height * width)
-        x = x.permute(1, 0, 2)
-        x = x.reshape(2, -1, num_channels // 2, height, width)
-        return x[0], x[1]
-
-
-class ShuffleNetV2_ACON(nn.Module):
-    def __init__(self, input_size=224, n_class=1000, model_size='1.5x'):
-        super(ShuffleNetV2_ACON, self).__init__()
-        print('model size is ', model_size)
-
-        self.stage_repeats = [4, 8, 4]
-        self.model_size = model_size
-        if model_size == '0.5x':
-            self.stage_out_channels = [-1, 24, 48, 96, 192, 1024]
-        elif model_size == '1.0x':
-            self.stage_out_channels = [-1, 24, 116, 232, 464, 1024]
-        elif model_size == '1.5x':
-            self.stage_out_channels = [-1, 24, 176, 352, 704, 1024]
-        elif model_size == '2.0x':
-            self.stage_out_channels = [-1, 24, 244, 488, 976, 2048]
-        else:
-            raise NotImplementedError
-
-        # building first layer
-        input_channel = self.stage_out_channels[1]
-        self.first_conv = nn.Sequential(
-            nn.Conv2d(3, input_channel, 3, 2, 1, bias=True),
-            nn.BatchNorm2d(input_channel),
-            AconC(input_channel),
+        self.branch2 = nn.Sequential(
+            nn.Conv2d(
+                inp if (self.stride > 1) else branch_features,
+                branch_features,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False,
+            ),
+            nn.BatchNorm2d(branch_features),
+            AconC(branch_features),
+            self.depthwise_conv(branch_features, branch_features, kernel_size=3, stride=self.stride, padding=1),
+            nn.BatchNorm2d(branch_features),
+            nn.Conv2d(branch_features, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(branch_features),
+            AconC(branch_features)
         )
 
-        # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+    @staticmethod
+    def depthwise_conv(
+            i: int, o: int, kernel_size: int, stride: int = 1, padding: int = 0, bias: bool = False
+    ) -> nn.Conv2d:
+        return nn.Conv2d(i, o, kernel_size, stride, padding, bias=bias, groups=i)
 
-        self.features = []
-        for idxstage in range(len(self.stage_repeats)):
-            numrepeat = self.stage_repeats[idxstage]
-            output_channel = self.stage_out_channels[idxstage+2]
+    def forward(self, x: Tensor) -> Tensor:
+        if self.stride == 1:
+            x1, x2 = x.chunk(2, dim=1)
+            out = torch.cat((x1, self.branch2(x2)), dim=1)
+        else:
+            out = torch.cat((self.branch1(x), self.branch2(x)), dim=1)
 
-            for i in range(numrepeat):
-                if i == 0:
-                    self.features.append(ShuffleV2Block_ACON(input_channel, output_channel,
-                                                mid_channels=output_channel // 2, ksize=3, stride=2))
-                else:
-                    self.features.append(ShuffleV2Block_ACON(input_channel // 2, output_channel,
-                                                mid_channels=output_channel // 2, ksize=3, stride=1))
+        out = channel_shuffle(out, 2)
 
-                input_channel = output_channel
+        return out
 
-        self.features = nn.Sequential(*self.features)
 
-        self.conv_last = nn.Sequential(
-            nn.Conv2d(input_channel, self.stage_out_channels[-1], 1, 1, 0, bias=True),
-            nn.BatchNorm2d(self.stage_out_channels[-1]),
-            AconC(self.stage_out_channels[-1]),
+class ShuffleNetV2(nn.Module):
+    def __init__(
+            self,
+            stages_repeats: List[int],
+            stages_out_channels: List[int],
+            num_classes: int = 100,
+            inverted_residual: Callable[..., nn.Module] = InvertedResidual,
+    ) -> None:
+        super().__init__()
+        if len(stages_repeats) != 3:
+            raise ValueError("expected stages_repeats as list of 3 positive ints")
+        if len(stages_out_channels) != 5:
+            raise ValueError("expected stages_out_channels as list of 5 positive ints")
+        self._stage_out_channels = stages_out_channels
+
+        input_channels = 3
+        output_channels = self._stage_out_channels[0]
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(input_channels, output_channels, 3, 2, 1, bias=False),
+            nn.BatchNorm2d(output_channels),
+            AconC(output_channels)
         )
-        self.globalpool = nn.AvgPool2d(7)
-        if self.model_size == '2.0x':
-            self.dropout = nn.Dropout(0.2)
-        self.classifier = nn.Sequential(nn.Linear(self.stage_out_channels[-1], n_class, bias=True))
-        self._initialize_weights()
+        input_channels = output_channels
 
-    def forward(self, x):
-        x = self.first_conv(x)
-        # x = self.maxpool(x)
-        x = self.features(x)
-        x = self.conv_last(x)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        x = self.globalpool(x)
-        if self.model_size == '2.0x':
-            x = self.dropout(x)
-        x = x.contiguous().view(-1, self.stage_out_channels[-1])
-        x = self.classifier(x)
+        # Static annotations for mypy
+        self.stage2: nn.Sequential
+        self.stage3: nn.Sequential
+        self.stage4: nn.Sequential
+        stage_names = [f"stage{i}" for i in [2, 3, 4]]
+        for name, repeats, output_channels in zip(stage_names, stages_repeats, self._stage_out_channels[1:]):
+            seq = [inverted_residual(input_channels, output_channels, 2)]
+            for i in range(repeats - 1):
+                seq.append(inverted_residual(output_channels, output_channels, 1))
+            setattr(self, name, nn.Sequential(*seq))
+            input_channels = output_channels
+
+        output_channels = self._stage_out_channels[-1]
+        self.conv5 = nn.Sequential(
+            nn.Conv2d(input_channels, output_channels, 1, 1, 0, bias=False),
+            nn.BatchNorm2d(output_channels),
+            AconC(output_channels)
+        )
+
+        self.fc = nn.Linear(output_channels, num_classes)
+
+    def _forward_impl(self, x: Tensor) -> Tensor:
+        # See note [TorchScript super()]
+        x = self.conv1(x)
+        x = self.maxpool(x)
+        x = self.stage2(x)
+        x = self.stage3(x)
+        x = self.stage4(x)
+        x = self.conv5(x)
+        x = x.mean([2, 3])  # globalpool
+        x = self.fc(x)
         return x
 
-    def _initialize_weights(self):
-        for name, m in self.named_modules():
-            if isinstance(m, nn.Conv2d):
-                if 'first' in name:
-                    nn.init.normal_(m.weight, 0, 0.01)
-                else:
-                    nn.init.normal_(m.weight, 0, 1.0 / m.weight.shape[1])
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0.0001)
-                nn.init.constant_(m.running_mean, 0)
-            elif isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0.0001)
-                nn.init.constant_(m.running_mean, 0)
-            elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, 0, 0.01)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+    def forward(self, x: Tensor) -> Tensor:
+        return self._forward_impl(x)
+
+
+def _shufflenetv2(arch: str, pretrained: bool, progress: bool, *args: Any, **kwargs: Any) -> ShuffleNetV2:
+    model = ShuffleNetV2(*args, **kwargs)
+    return model
+
+
+def shufflenet_v2_x0_5_ACONC(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ShuffleNetV2:
+    """
+    Constructs a ShuffleNetV2 with 0.5x output channels, as described in
+    `"ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design"
+    <https://arxiv.org/abs/1807.11164>`_.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return _shufflenetv2("shufflenetv2_x0.5_ACONC", pretrained, progress, [4, 8, 4], [24, 48, 96, 192, 1024], **kwargs)
 

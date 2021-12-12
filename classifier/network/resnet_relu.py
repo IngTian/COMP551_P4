@@ -5,14 +5,8 @@ from typing import Type, Any, Callable, Union, List, Optional
 
 import sys
 sys.path.insert(0,'../..')
-from acon import MetaAconC
 
-
-__all__ = ['ResNet', 'resnet18_metaacon', 'resnet50_metaacon', 'resnet101_metaacon', 'resnet152_metaacon']
-
-
-model_urls = {}
-
+__all__ = ['ResNet',  'resnet18_relu']
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
@@ -24,9 +18,7 @@ def conv1x1(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=True)
 
-
-
-class BasicBlock_MetaACON(nn.Module):
+class BasicBlock_ReLU(nn.Module):
     # We change the ReLU activation functions to ACON-C
     # according to "Activate or Not: Learning Customized Activation" <https://arxiv.org/pdf/2009.04759.pdf>.
     expansion: int = 1
@@ -42,7 +34,7 @@ class BasicBlock_MetaACON(nn.Module):
         dilation: int = 1,
         norm_layer: Optional[Callable[..., nn.Module]] = None
     ) -> None:
-        super(BasicBlock_MetaACON, self).__init__()
+        super(BasicBlock_ReLU, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         if groups != 1 or base_width != 64:
@@ -52,11 +44,11 @@ class BasicBlock_MetaACON(nn.Module):
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = norm_layer(planes)
-        self.acon1 = MetaAconC(planes)
+        self.relu = nn.ReLU(inplace=True)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = norm_layer(planes)
-        self.acon2 = MetaAconC(planes)
+        self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
 
@@ -65,7 +57,7 @@ class BasicBlock_MetaACON(nn.Module):
 
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.acon1(out)
+        out = self.relu(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
@@ -74,17 +66,15 @@ class BasicBlock_MetaACON(nn.Module):
             identity = self.downsample(x)
 
         out += identity
-        out = self.acon2(out)
+        out = self.relu(out)
 
         return out
 
-
-class Bottleneck_MetaACON(nn.Module):
+class Bottleneck_ReLU(nn.Module):
     # We change the ReLU activation function after the 3x3 convolution(self.conv2) to ACON-C
     # according to "Activate or Not: Learning Customized Activation" <https://arxiv.org/pdf/2009.04759.pdf>.
 
     # We use the original implementation which places the stride at the first 1x1 convolution(self.conv1)
-    # while original implementation places the stride at the first 1x1 convolution(self.conv1)
     # according to "Deep residual learning for image recognition"https://arxiv.org/abs/1512.03385.
     # This variant is also known as ResNet V1.5 and improves accuracy according to
     # https://ngc.nvidia.com/catalog/model-scripts/nvidia:resnet_50_v1_5_for_pytorch.
@@ -102,16 +92,16 @@ class Bottleneck_MetaACON(nn.Module):
         dilation: int = 1,
         norm_layer: Optional[Callable[..., nn.Module]] = None
     ) -> None:
-        super(Bottleneck_MetaACON, self).__init__()
+        super(Bottleneck_ReLU, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         width = int(planes * (base_width / 64.)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
-        self.conv1 = conv1x1(inplanes, width, stride)
+        self.conv1 = conv1x1(inplanes, width, stride, padding = 1, dilation = 0)
         self.bn1 = norm_layer(width)
         self.conv2 = conv3x3(width, width, 1, groups, dilation)
         self.bn2 = norm_layer(width)
-        self.acon = MetaAconC(width)
+        self.relu = nn.ReLU(inplace=True)
         self.conv3 = conv1x1(width, planes * self.expansion)
         self.bn3 = norm_layer(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
@@ -127,7 +117,7 @@ class Bottleneck_MetaACON(nn.Module):
 
         out = self.conv2(out)
         out = self.bn2(out)
-        out = self.acon(out)
+        out = self.relu(out)
 
         out = self.conv3(out)
         out = self.bn3(out)
@@ -140,11 +130,12 @@ class Bottleneck_MetaACON(nn.Module):
 
         return out
 
+
 class ResNet(nn.Module):
 
     def __init__(
         self,
-        block: Type[Union[BasicBlock_MetaACON, Bottleneck_MetaACON]],
+        block: Type[Union[BasicBlock_ReLU, Bottleneck_ReLU]],
         layers: List[int],
         num_classes: int = 100,
         zero_init_residual: bool = False,
@@ -196,14 +187,12 @@ class ResNet(nn.Module):
         # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
         if zero_init_residual:
             for m in self.modules():
-                if isinstance(m, Bottleneck_MetaACON):
+                if isinstance(m, Bottleneck_ReLU):
                     nn.init.constant_(m.bn3.weight, 0)  # type: ignore[arg-type]
-                elif isinstance(m, BasicBlock_MetaACON):
+                elif isinstance(m, BasicBlock_ReLU):
                     nn.init.constant_(m.bn2.weight, 0)  # type: ignore[arg-type]
-                # if isinstance(m, Bottleneck_MetaACON):
-                #     nn.init.constant_(m.bn3.weight, 0)  # type: ignore[arg-type]
 
-    def _make_layer(self, block: Type[Union[BasicBlock_MetaACON, Bottleneck_MetaACON]], planes: int, blocks: int,
+    def _make_layer(self, block: Type[Union[BasicBlock_ReLU, Bottleneck_ReLU]], planes: int, blocks: int,
                     stride: int = 1, dilate: bool = False) -> nn.Sequential:
         norm_layer = self._norm_layer
         downsample = None
@@ -238,6 +227,7 @@ class ResNet(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
+
         x = self.layer4(x)
 
         x = self.avgpool(x)
@@ -252,7 +242,7 @@ class ResNet(nn.Module):
 
 def _resnet(
     arch: str,
-    block: Type[Union[ BasicBlock_MetaACON, Bottleneck_MetaACON]],
+    block: Type[Union[BasicBlock_ReLU, Bottleneck_ReLU]],
     layers: List[int],
     pretrained: bool,
     progress: bool,
@@ -262,44 +252,46 @@ def _resnet(
     return model
 
 
-def resnet18_metaacon(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def resnet18_relu(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
     r"""ResNet-18 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _resnet("resnet18_metaacon", BasicBlock_MetaACON , [2, 2, 2, 2], pretrained, progress, **kwargs)
+    return _resnet("resnet18_relu", BasicBlock_ReLU, [2, 2, 2, 2], pretrained, progress, **kwargs)
 
 
 
-def resnet50_metaacon(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
-    r"""ResNet-50-meta-acon model from
-    `"Activate or Not: Learning Customized Activation" <https://arxiv.org/pdf/2009.04759.pdf>`_.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
-    return _resnet('resnet50_metaacon', Bottleneck_MetaACON, [3, 4, 6, 3], pretrained, progress,
-                   **kwargs)
-
-def resnet101_metaacon(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
-    r"""ResNet-101-meta-acon model from
-    `"Activate or Not: Learning Customized Activation" <https://arxiv.org/pdf/2009.04759.pdf>`_.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
-    return _resnet('resnet101_metaacon', Bottleneck_MetaACON, [3, 4, 23, 3], pretrained, progress,
-                   **kwargs)
-
-def resnet152_metaacon(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
-    r"""ResNet-152-meta-acon model from
-    `"Activate or Not: Learning Customized Activation" <https://arxiv.org/pdf/2009.04759.pdf>`_.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
-    return _resnet('resnet152_metaacon', Bottleneck_MetaACON, [3, 8, 36, 3], pretrained, progress,
-                   **kwargs)
-
+#
+#
+# def resnet50_acon(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+#     r"""ResNet-50-acon model from
+#     `"Activate or Not: Learning Customized Activation" <https://arxiv.org/pdf/2009.04759.pdf>`_.
+#     Args:
+#         pretrained (bool): If True, returns a model pre-trained on ImageNet
+#         progress (bool): If True, displays a progress bar of the download to stderr
+#     """
+#     return _resnet('resnet50_acon', Bottleneck_ReLU, [3, 4, 6, 3], pretrained, progress,
+#                    **kwargs)
+#
+# def resnet101_acon(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+#     r"""ResNet-101-acon model from
+#     `"Activate or Not: Learning Customized Activation" <https://arxiv.org/pdf/2009.04759.pdf>`_.
+#     Args:
+#         pretrained (bool): If True, returns a model pre-trained on ImageNet
+#         progress (bool): If True, displays a progress bar of the download to stderr
+#     """
+#     return _resnet('resnet101_acon', Bottleneck_ReLU, [3, 4, 23, 3], pretrained, progress,
+#                    **kwargs)
+#
+# def resnet152_acon(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+#     r"""ResNet-152-acon model from
+#     `"Activate or Not: Learning Customized Activation" <https://arxiv.org/pdf/2009.04759.pdf>`_.
+#     Args:
+#         pretrained (bool): If True, returns a model pre-trained on ImageNet
+#         progress (bool): If True, displays a progress bar of the download to stderr
+#     """
+#     return _resnet('resnet152_acon', Bottleneck_ReLU, [3, 8, 36, 3], pretrained, progress,
+#                    **kwargs)
+#
