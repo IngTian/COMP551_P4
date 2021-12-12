@@ -1,9 +1,8 @@
-from classifier import *
-from acon import *
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
 import acon
+from classifier import *
+
 
 class VGG16_Meta_ACON(Module):
     def __init__(self):
@@ -38,13 +37,12 @@ class VGG16_Meta_ACON(Module):
 
         self.dense = nn.Sequential(
             nn.Linear(2048, 4096),
-            acon.AconC_FC(),
+            nn.ReLU(),
             nn.Dropout(p=0.5),
             nn.Linear(4096, 4096),
-            acon.AconC_FC(),
+            nn.ReLU(),
             nn.Dropout(p=0.5),
             nn.Linear(4096, 100)
-
         )
 
     def forward(self, x):
@@ -55,7 +53,7 @@ class VGG16_Meta_ACON(Module):
 
 class VGG16_MetaACON_Classifier(NNClassifier):
     def __init__(self, training_l: LabeledDataset, validation: LabeledDataset,
-                 training_ul: Optional[UnlabeledDataset] = None,):
+                 training_ul: Optional[UnlabeledDataset] = None, ):
         """
 
         :param training_l:
@@ -70,4 +68,3 @@ class VGG16_MetaACON_Classifier(NNClassifier):
 
     def predict(self, x: Tensor):
         return self._pred(x)
-
