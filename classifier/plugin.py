@@ -21,7 +21,8 @@ def save_model(folder_path: Path, save_last: bool = False, step: int = 1) -> Tra
 
     return plugin
 
-def save_good_models(folder_path: Path, tolerance = 0.01,step: int = 1) -> TrainingPlugin:
+
+def save_good_models(folder_path: Path, tolerance=0.01, step: int = 1) -> TrainingPlugin:
     """
     :param folder_path: the path of the folder to save the model
     :param step: step size of epochs to activate the plugin
@@ -32,18 +33,19 @@ def save_good_models(folder_path: Path, tolerance = 0.01,step: int = 1) -> Train
 
     def plugin(clf: NNClassifier, epoch: int) -> None:
         if epoch % step == 0:
-            e = clf._tmp['learning_path']['epochs']
-            val = clf._tmp['learning_path']['val']
-            indices_to_remove = []
-            best = max(val)
-            for i in range(len(val)):
-                if abs(val[i]-best) >= tolerance:
-                    indices_to_remove.append(i)
+            if epoch != 1:
+                e = clf._tmp['learning_path']['epochs']
+                val = clf._tmp['learning_path']['val']
+                indices_to_remove = []
+                best = max(val)
+                for i in range(len(val)):
+                    if abs(val[i] - best) >= tolerance:
+                        indices_to_remove.append(i)
 
-            to_remove = [e[j] for j in indices_to_remove]
-            for k in to_remove:
-                if Path(folder_path / f"{k}.params").exists():
-                    Path.unlink(Path(folder_path / f"{k}.params"))
+                to_remove = [e[j] for j in indices_to_remove]
+                for k in to_remove:
+                    if Path(folder_path / f"{k}.params").exists():
+                        Path.unlink(Path(folder_path / f"{k}.params"))
 
             torch.save(clf.network.state_dict(), str(folder_path / f"{epoch}.params"))
 

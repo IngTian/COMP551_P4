@@ -11,13 +11,7 @@ import numpy as np
 import torchvision
 from torchvision import transforms, models
 
-from classifier.metric import *
-from classifier.network.vgg16_acon import *
-from classifier.network.vgg16_metaacon import *
-from classifier.network.vgg16_relu import *
-from classifier.plugin import *
-
-TRAINED_MODELS_PATH = Path("../drive/MyDrive/Colab Notebooks/COMP551/Project 4/vgg_exp_results")
+TRAINED_MODELS_PATH = Path("../drive/MyDrive/Colab Notebooks/COMP551/Project 4/alexnet-results")
 
 
 def get_mean_std(cifar):
@@ -49,9 +43,9 @@ def save_data(path: str = './dataset', val_proportion: float = 0.1, random_seed:
     mean_std = get_mean_std(train)
     print(mean_std)
 
-    #mean_std = ((0.4992, 0.4992, 0.4992), (0.2891, 0.2891, 0.2891)) # 224 * 224
-    #mean_std = ((0.4994, 0.4994, 0.4987), (0.2890, 0.2890, 0.2867)) # 128 * 128
-    #mean_std = ((0.4996, 0.4983, 0.4947), (0.2888, 0.2847, 0.2818)) # 64 * 64
+    # mean_std = ((0.4992, 0.4992, 0.4992), (0.2891, 0.2891, 0.2891)) # 224 * 224
+    # mean_std = ((0.4994, 0.4994, 0.4987), (0.2890, 0.2890, 0.2867)) # 128 * 128
+    # mean_std = ((0.4996, 0.4983, 0.4947), (0.2888, 0.2847, 0.2818)) # 64 * 64
     # mean_std = ((0.4882, 0.4877, 0.4869), (0.2802, 0.2798, 0.2785)) # original 28 * 28
 
     transform_train = transforms.Compose([
@@ -76,6 +70,7 @@ def save_data(path: str = './dataset', val_proportion: float = 0.1, random_seed:
     torch.save(train, Path(Path(path)) / 'train')
     torch.save(val, Path(Path(path)) / 'val')
     torch.save(test, Path(Path(path)) / 'test')
+
 
 def load_data(path: str = './dataset'):
     train = torch.load(Path(Path(path)) / 'train')
@@ -122,20 +117,20 @@ def train_model(model: Callable[..., Module], fname: str, model_params: Dict[str
     clf.set_optimizer(ADAM_PROFILE)
 
     clf.train(epochs,
-               batch_size=batch_size,
-               plugins=[
-                   save_good_models(model_path),
-                   calc_train_val_performance(accuracy),
-                   print_train_val_performance(accuracy),
-                   log_train_val_performance(accuracy),
-                   save_training_message(model_path),
-                   plot_train_val_performance(model_path, 'Modified AlexNet', accuracy, show=False,
-                                              save=True),
-                   elapsed_time(),
-                   save_train_val_performance(model_path, accuracy),
-               ],
-               start_epoch=continue_from + 1
-               )
+              batch_size=batch_size,
+              plugins=[
+                  save_good_models(model_path),
+                  calc_train_val_performance(accuracy),
+                  print_train_val_performance(accuracy),
+                  log_train_val_performance(accuracy),
+                  save_training_message(model_path),
+                  plot_train_val_performance(model_path, 'Modified AlexNet', accuracy, show=False,
+                                             save=True),
+                  elapsed_time(),
+                  save_train_val_performance(model_path, accuracy),
+              ],
+              start_epoch=continue_from + 1
+              )
 
 
 def get_best_epoch(fname: str):
@@ -158,6 +153,7 @@ def get_best_epoch(fname: str):
             break
     return epochs[index_to_chose]
 
+
 def obtain_test_acc(model: Callable[..., Module], fname: str, model_params: Dict[str, Any] = {}, *args, **kwargs):
     best_epoch = get_best_epoch(fname)
     clf = NNClassifier(model, None, None, network_params=model_params)
@@ -175,6 +171,7 @@ def train_and_test(model: Callable[..., Module], fname: str, model_params: Dict[
                    ):
     train_model(model, fname, model_params, epochs, continue_from, batch_size)
     obtain_test_acc(model, fname, model_params)
+
 
 def plot_valacc(entries: Dict[str, str], title: str, target: str, epochs_to_show: int = 50, show: bool = False):
     """
