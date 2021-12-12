@@ -1,5 +1,7 @@
 from timeit import default_timer as timer
 
+from matplotlib import pyplot as plt
+
 from classifier import *
 
 
