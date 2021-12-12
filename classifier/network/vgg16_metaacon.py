@@ -50,7 +50,6 @@ class VGG16_Meta_ACON(Module):
             nn.Linear(4096, 4096),
             acon.AconC_FC(),
             nn.Dropout(p=0.5),
-            # nn.Linear(4096, 10)
             nn.Linear(4096, 100)
 
         )

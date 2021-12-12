@@ -6,6 +6,9 @@ from classifier.network.alex_net_acon import *
 from classifier.network.alex_net_metaacon import *
 from classifier.network.alex_net_metaacon1 import *
 from classifier.network.alex_net_relu import *
+from classifier.network.vgg16_acon import *
+from classifier.network.vgg16_relu import *
+from classifier.network.vgg16_metaacon import *
 from classifier.plugin import *
 from classifier.metric import *
 import torchvision
@@ -159,12 +162,8 @@ def train_and_test(model: Callable[..., Module], fname: str, model_params: Dict[
 if __name__ == '__main__':
     alex_params = {'n_way': 2, 'depth': (1, 1, 2)}
 
-    train_and_test(AlexNetMetaAcon, 'alex-metaacon', alex_params)
+    train_and_test(VGG16_ACON, 'vgg16-acon')
 
-    train_and_test(AlexNetMetaAcon1, 'alex-metaacon1', alex_params)
+    train_and_test(VGG16_Meta_ACON, 'vgg16-meta-acon')
 
-    train_and_test(AlexNetAcon, 'alex-acon', alex_params)
-
-    train_and_test(AlexNetReLU, 'alex-relu', alex_params)
-
-    train_and_test(AlexNetLeakyReLU, 'alex-leakyrelu', alex_params)
+    train_and_test(VGG16, 'vgg16-vanilla')

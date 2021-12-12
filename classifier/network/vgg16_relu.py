@@ -54,32 +54,10 @@ class VGG16(Module):
             nn.Dropout(p=0.5),
             # nn.Linear(4096, 10)
             nn.Linear(4096, 100)
-
         )
 
     def forward(self, x):
         x = self.conv(x)
         x = Function.flatten(x)
         return self.dense(x)
-
-
-class VGG16Classifier(NNClassifier):
-    def __init__(self, training_l: LabeledDataset, validation: LabeledDataset,
-                 training_ul: Optional[UnlabeledDataset] = None,
-                 n_way: int = 1,
-                 depth: Tuple[int, int, int] = (1, 1, 2),):
-        """
-
-        :param training_l:
-        :param validation:
-        :param training_ul:
-        :param n_way: n ways of convolution layers
-        :param depth: depth in each scale space. The length of the list must be 3
-        """
-        super(VGG16Classifier, self).__init__(VGG16(n_way, depth), training_l, validation, training_ul)
-        self.optim = SGD(self.network.parameters(), lr=1e-3, momentum=0.99)
-        self.loss = CrossEntropyLoss()
-
-    def predict(self, x: Tensor):
-        return self._pred(x)
 
