@@ -36,7 +36,7 @@ to **Yuyan Chen**, **Ing Tian**, and **Zijun Zhao**, without whom this project c
 └── p4.ipynb
 ```
 
-`acon.py` contains the optimizer `ACON` we wish to investigate in this experiment. Inside the `classifier` folder, we
+`acon.py` contains the activation functions `ACON` and `MetaACON` we wish to investigate in this experiment. Inside the `classifier` folder, we
 have defined various models spanning from *VGG*, *AlexNet*, *ShuffleNet*, and *ResNet*. Also, some common utils
 pertaining to these models are defined in `classifier/__init__.py`, `classifier/metric.py`, and `classifier/plugin.py`.
 Next, the `data` folder contains utils related to dataset processing. Finally. we have provided a sample `p4.ipynb` to
