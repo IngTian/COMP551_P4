@@ -1,24 +1,27 @@
 """
 This file should be migrated to a jupyter notebook.
 """
-from classifier.network.alex_net_leakyrelu import *
-from classifier.network.alex_net_acon import *
-from classifier.network.alex_net_metaacon import *
-from classifier.network.alex_net_metaacon1 import *
-from classifier.network.alex_net_relu import *
-from classifier.plugin import *
-from classifier.metric import *
+from typing import Callable, Dict
+
+import numpy as np
 import torchvision
 from torchvision import transforms
 
-TRAINED_MODELS_PATH = Path("trained-models")
+from classifier.metric import *
+from classifier.network.vgg16_acon import *
+from classifier.network.vgg16_metaacon import *
+from classifier.network.vgg16_relu import *
+from classifier.plugin import *
+
+TRAINED_MODELS_PATH = Path("../drive/MyDrive/Colab Notebooks/COMP551/Project 4/vgg_exp_results")
 
 
 def get_mean_std(cifar):
     features = [item[0] for item in cifar]
     features = torch.stack(features, dim=0)
-    mean = features[...,0].mean(), features[...,1].mean(), features[...,2].mean()
-    std = features[...,0].std(unbiased=False), features[...,1].std(unbiased=False), features[...,2].std(unbiased=False)
+    mean = features[..., 0].mean(), features[..., 1].mean(), features[..., 2].mean()
+    std = features[..., 0].std(unbiased=False), features[..., 1].std(unbiased=False), features[..., 2].std(
+        unbiased=False)
     return (mean, std)
 
 
@@ -74,18 +77,19 @@ def load_data(path: str = './dataset'):
 
 
 ADAM_PROFILE = OptimizerProfile(Adam, {
-            "lr": 0.0005,
-            "betas": (0.9, 0.99),
-            "eps": 1e-8
-        })
-
-SGD_PROFILE = OptimizerProfile(SGD, {
-        'lr': 0.0005,
-        'momentum': 0.99
+    "lr": 0.0005,
+    "betas": (0.9, 0.99),
+    "eps": 1e-8
 })
 
-#save_data()
+SGD_PROFILE = OptimizerProfile(SGD, {
+    'lr': 0.0005,
+    'momentum': 0.99
+})
+
+# save_data()
 TRAIN, VAL, TEST = load_data()
+
 
 def train_model(model: Callable[..., Module], fname: str, model_params: Dict[str, Any] = {},
                 epochs: int = 100,
@@ -105,20 +109,21 @@ def train_model(model: Callable[..., Module], fname: str, model_params: Dict[str
     clf.set_optimizer(ADAM_PROFILE)
 
     clf.train(epochs,
-               batch_size=batch_size,
-               plugins=[
-                   save_model(model_path, save_last=False),
-                   calc_train_val_performance(accuracy),
-                   print_train_val_performance(accuracy),
-                   log_train_val_performance(accuracy),
-                   save_training_message(model_path),
-                   plot_train_val_performance(model_path, 'Modified AlexNet', accuracy, show=False,
-                                              save=True),
-                   elapsed_time(),
-                   save_train_val_performance(model_path, accuracy),
-               ],
-               start_epoch=continue_from + 1
-               )
+              batch_size=batch_size,
+              plugins=[
+                  save_model(model_path, save_last=False),
+                  calc_train_val_performance(accuracy),
+                  print_train_val_performance(accuracy),
+                  log_train_val_performance(accuracy),
+                  save_training_message(model_path),
+                  plot_train_val_performance(model_path, 'Modified AlexNet', accuracy, show=False,
+                                             save=True),
+                  elapsed_time(),
+                  save_train_val_performance(model_path, accuracy),
+              ],
+              start_epoch=continue_from + 1
+              )
+
 
 def get_best_epoch(fname: str):
     """
@@ -140,6 +145,7 @@ def get_best_epoch(fname: str):
             break
     return epochs[index_to_chose]
 
+
 def obtain_test_acc(model: Callable[..., Module], fname: str, model_params: Dict[str, Any] = {}):
     best_epoch = get_best_epoch(fname)
     clf = NNClassifier(model, None, None, network_params=model_params)
@@ -147,6 +153,7 @@ def obtain_test_acc(model: Callable[..., Module], fname: str, model_params: Dict
     clf.load_network(model_path, best_epoch)
     acc = clf.evaluate(TEST, accuracy)
     print(f"\nTEST SET RESULT: {acc}")
+
 
 def train_and_test(model: Callable[..., Module], fname: str, model_params: Dict[str, Any] = {},
                    epochs: int = 100,
@@ -156,15 +163,21 @@ def train_and_test(model: Callable[..., Module], fname: str, model_params: Dict[
     train_model(model, fname, model_params, epochs, continue_from, batch_size)
     obtain_test_acc(model, fname, model_params)
 
+
+def get_num_of_params(model: Module) -> int:
+    model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+    return sum([np.prod(p.size()) for p in model_parameters])
+
+
 if __name__ == '__main__':
     alex_params = {'n_way': 2, 'depth': (1, 1, 2)}
 
-    train_and_test(AlexNetMetaAcon, 'alex-metaacon', alex_params)
+    print(f'PARAM NUMS OF VGG16_ACON: {"{:.2e}".format(get_num_of_params(VGG16_ACON()))}')
+    print(f'PARAM NUMS OF VGG16_Meta_ACON: {"{:.2e}".format(get_num_of_params(VGG16_Meta_ACON()))}')
+    print(f'PARAM NUMS OF VGG16_ReLU: {"{:.2e}".format(get_num_of_params(VGG16()))}')
 
-    train_and_test(AlexNetMetaAcon1, 'alex-metaacon1', alex_params)
-
-    train_and_test(AlexNetAcon, 'alex-acon', alex_params)
-
-    train_and_test(AlexNetReLU, 'alex-relu', alex_params)
-
-    train_and_test(AlexNetLeakyReLU, 'alex-leakyrelu', alex_params)
+    # train_and_test(VGG16_ACON, 'vgg16-acon')
+    #
+    # train_and_test(VGG16_Meta_ACON, 'vgg16-meta-acon')
+    #
+    # train_and_test(VGG16, 'vgg16-vanilla')

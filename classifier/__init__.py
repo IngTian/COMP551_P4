@@ -1,18 +1,15 @@
-from data import *
-import torch.nn as nn
-from torch.nn import Module, CrossEntropyLoss, functional
-from torch.optim import SGD, Optimizer, Adam
+from typing import Callable, Dict
+
+from torch import device
+from torch.nn import Module, CrossEntropyLoss
+from torch.optim import SGD, Optimizer
 from torch.utils.data import DataLoader
-from torch import device, Tensor
-import torch
-from pathlib import Path
-import pandas as pd
-import matplotlib.pyplot as plt
-import cv2
 from torch.utils.data import random_split
 
+from data import *
+
 TrainingPlugin = Callable[[Any, int], None]
-Metric = Callable[[Any, DataLoader], float] # pred, true -> result. The higher the better
+Metric = Callable[[Any, DataLoader], float]  # pred, true -> result. The higher the better
 
 
 class Function:
@@ -34,6 +31,7 @@ class Classifier:
     """
     Abstract Classifier
     """
+
     def __init__(self,
                  training_l: LabeledDataset,
                  validation: LabeledDataset,
@@ -82,7 +80,7 @@ class Classifier:
 
 class OptimizerProfile:
     def __init__(self, optimizer: Callable[..., Optimizer],
-                      parameters: Dict[str, Any] = {}):
+                 parameters: Dict[str, Any] = {}):
         self.optim = optimizer
         self.params = parameters
 
@@ -91,6 +89,7 @@ class NNClassifier(Classifier):
     """
     Abstract Network Classifier
     """
+
     def __init__(self,
                  network: Callable[..., Module],
                  training_l: LabeledDataset,
@@ -135,7 +134,7 @@ class NNClassifier(Classifier):
               shuffle: bool = True,
               start_epoch: int = 1,
               plugins: Optional[List[TrainingPlugin]] = None,
-              verbose: bool = True)\
+              verbose: bool = True) \
             -> None:
         """
         Train the model up to the epochs given.
@@ -183,7 +182,7 @@ class NNClassifier(Classifier):
                 print(s, end='')
                 for plugin in plugins:
                     plugin(self, epoch)
-                self.training_message = '' # reset training message
+                self.training_message = ''  # reset training message
         if verbose:
             s = f"\nFinished training all {epochs} epochs."
             self.training_message = s

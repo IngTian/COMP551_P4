@@ -1,5 +1,8 @@
-from classifier import *
 from timeit import default_timer as timer
+
+from matplotlib import pyplot as plt
+
+from classifier import *
 
 
 def save_model(folder_path: Path, save_last: bool = False, step: int = 1) -> TrainingPlugin:
@@ -15,8 +18,9 @@ def save_model(folder_path: Path, save_last: bool = False, step: int = 1) -> Tra
         if epoch % step == 0:
             torch.save(clf.network.state_dict(), str(folder_path / f"{epoch}.params"))
             if save_last:
-                if Path(folder_path / f"{epoch-1}.params").exists():
-                    Path.unlink(Path(folder_path / f"{epoch-1}.params"))
+                if Path(folder_path / f"{epoch - 1}.params").exists():
+                    Path.unlink(Path(folder_path / f"{epoch - 1}.params"))
+
     return plugin
 
 
@@ -34,6 +38,7 @@ def save_training_message(folder_path: Path, step: int = 1, empty_previous: bool
         if epoch % step == 0:
             with open(str(folder_path / 'log.txt'), 'a+') as f:
                 f.write(clf.training_message)
+
     return plugin
 
 
@@ -58,6 +63,7 @@ def elapsed_time(print_to_console: bool = True, log: bool = True, step: int = 1)
             if log:
                 clf.training_message += s
             clf._tmp['time'] = timer()
+
     return plugin
 
 
@@ -76,6 +82,7 @@ def calc_train_val_performance(metric: Metric, batch_size: int = 300, step: int 
                 clf.train_performance(metric, batch_size),
                 clf.val_performance(metric, batch_size)
             )
+
     return plugin
 
 
@@ -86,6 +93,7 @@ def log_train_val_performance(metric: Metric, batch_size: int = 300, step: int =
     :param step: step size of epochs to activate the plugin
     :return: a plugin that logs training and validation performance to training message after each step
     """
+
     def plugin(clf: NNClassifier, epoch: int) -> None:
         if epoch % step == 0:
             if type(clf._tmp) != dict or 'performance' not in clf._tmp:
@@ -94,6 +102,7 @@ def log_train_val_performance(metric: Metric, batch_size: int = 300, step: int =
                 train, val = clf._tmp['performance'][0], clf._tmp['performance'][1]
             s = f"TRAIN: {train}\tVAL: {val}\n"
             clf.training_message += s
+
     return plugin
 
 
@@ -114,10 +123,12 @@ def print_train_val_performance(metric: Metric, batch_size: int = 300, step: int
                 train, val = clf._tmp['performance']
             s = f"TRAIN: {train}\tVAL: {val}"
             print(s)
+
     return plugin
 
 
-def save_train_val_performance(folder_path: Path, metric: Metric, batch_size: int = 300, step: int = 1) -> TrainingPlugin:
+def save_train_val_performance(folder_path: Path, metric: Metric, batch_size: int = 300,
+                               step: int = 1) -> TrainingPlugin:
     """
 
     :param folder_path:
@@ -141,6 +152,7 @@ def save_train_val_performance(folder_path: Path, metric: Metric, batch_size: in
             clf._tmp['learning_path']['train'].append(train)
             clf._tmp['learning_path']['val'].append(val)
             torch.save(clf._tmp['learning_path'], str(folder_path / 'performance.pt'))
+
     return plugin
 
 
@@ -193,7 +205,7 @@ def plot_train_val_performance(folder_path: Path,
                      label="training", alpha=0.5)
             plt.plot(epochs, val_performances,
                      label="validation", alpha=0.5)
-            #plt.ylim(top=1, bottom=0.9)
+            # plt.ylim(top=1, bottom=0.9)
             plt.xlabel('Number of epochs')
             plt.ylabel('Accuracy')
             plt.title(title)
@@ -201,9 +213,10 @@ def plot_train_val_performance(folder_path: Path,
             if save:
                 plt.savefig(folder_path / f'{epoch} epochs.jpg')
                 # delete previous plot
-                if Path(folder_path / f'{epoch-step} epochs.jpg').exists():
-                    Path.unlink(Path(folder_path / f'{epoch-step} epochs.jpg'))
+                if Path(folder_path / f'{epoch - step} epochs.jpg').exists():
+                    Path.unlink(Path(folder_path / f'{epoch - step} epochs.jpg'))
             if show:
                 plt.show()
             plt.close('all')
+
     return plugin
