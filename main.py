@@ -264,9 +264,11 @@ if __name__ == '__main__':
     # run on cifar 100
     save_data(dataset='CIFAR100')
     TRAIN, VAL, TEST = load_data()
+    TRAINED_MODELS_PATH = Path("trained-models") / 'CIFAR100'
     experiment('CIFAR100', 50)
 
     # run on cifar 10
     save_data(dataset='CIFAR10')
     TRAIN, VAL, TEST = load_data()
+    TRAINED_MODELS_PATH = Path("trained-models") / 'CIFAR10'
     experiment('CIFAR10', 50)
