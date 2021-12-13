@@ -52,7 +52,7 @@ class Classifier:
         """
         proportion_to_check = int(proportion * len(self.training_l))
         t, _ = random_split(self.training_l, [proportion_to_check, len(self.training_l) - proportion_to_check])
-        loader = DataLoader(self.training_l, batch_size=batch_size, shuffle=False)
+        loader = DataLoader(t, batch_size=batch_size, shuffle=False)
         return metric(self, loader)
 
     def val_performance(self, metric: Metric, batch_size=300):
@@ -121,6 +121,8 @@ class NNClassifier(Classifier):
         :return: a network callable that can be passed to the NNClassifier constructor
         """
         self.network.load_state_dict(torch.load(folder_path / f"{epoch}.params"))
+        if (folder_path / "performance.pt").exists():
+            self._tmp['learning_path'] = torch.load(folder_path / "performance.pt")
 
     def set_optimizer(self, optimizer: OptimizerProfile):
         self.optim = optimizer.optim(self.network.parameters(), **optimizer.params)
