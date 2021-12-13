@@ -1,11 +1,14 @@
 from classifier import *
 from acon import *
+from typing import Tuple
 
 '''
 code from https://github.com/pytorch/vision/blob/main/torchvision/models/alexnet.py
 ( same as: torchvision.models.alexnet() )
 
 '''
+
+
 class AlexNet(Module):
     def __init__(self, num_classes: int = 100, dropout: float = 0.5, sizes: Tuple = (64, 192, 384, 256, 256, 4096),
                  activation: str = 'relu') -> None:
@@ -48,5 +51,3 @@ class AlexNet(Module):
         x = torch.flatten(x, 1)
         x = self.classifier(x)
         return x
-
-
