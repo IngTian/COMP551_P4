@@ -45,12 +45,11 @@ and `ReLU` for variants of `VGG16` on the `CIFAR-100` datset.
 └── p4.ipynb
 ```
 
-`acon.py` contains the activation functions `ACON` and `MetaACON` we wish to investigate in this experiment. Inside
-the `classifier`
-folder, we have defined various models spanning from *VGG*, *AlexNet*, *ShuffleNet*, and *ResNet*. Also, some common
-utils pertaining to these models are defined in `classifier/__init__.py`, `classifier/metric.py`,
-and `classifier/plugin.py`. Next, the `data` folder contains utils related to dataset processing. Finally. we have
-provided a sample `p4.ipynb` to run our codes in Colab.
+`acon.py` contains the activation functions `ACON` and `MetaACON` we wish to investigate in this experiment. Inside the `classifier` folder, we
+have defined various models spanning from *VGG*, *AlexNet*, *ShuffleNet*, and *ResNet*. Also, some common utils
+pertaining to these models are defined in `classifier/__init__.py`, `classifier/metric.py`, and `classifier/plugin.py`.
+Next, the `data` folder contains utils related to dataset processing. Finally. we have provided a sample `p4.ipynb` to
+run our codes in Colab.
 
 ---
 
