@@ -5,6 +5,7 @@ This file should be migrated to a jupyter notebook.
 from classifier.network.alex_net import *
 from classifier.plugin import *
 from classifier.metric import *
+from torch.optim import Adam
 from typing import Callable, Dict
 
 import numpy as np
@@ -17,8 +18,9 @@ TRAINED_MODELS_PATH = Path("trained-models")
 def get_mean_std(cifar):
     features = [item[0] for item in cifar]
     features = torch.stack(features, dim=0)
-    mean = features[...,0].mean(), features[...,1].mean(), features[...,2].mean()
-    std = features[...,0].std(unbiased=False), features[...,1].std(unbiased=False), features[...,2].std(unbiased=False)
+    mean = features[..., 0].mean(), features[..., 1].mean(), features[..., 2].mean()
+    std = features[..., 0].std(unbiased=False), features[..., 1].std(unbiased=False), features[..., 2].std(
+        unbiased=False)
     return (mean, std)
 
 
@@ -39,7 +41,7 @@ def save_data(path: str = './dataset', dataset: str = 'CIFAR10', val_proportion:
         raise NotImplementedError("The dataset given is not supported")
 
     train_original = get_dataset(root=path, train=True, transform=transform_train,
-                                                   download=True)
+                                 download=True)
 
     val_size = int(len(train_original) * val_proportion)
     train_size = len(train_original) - val_size
@@ -71,6 +73,7 @@ def save_data(path: str = './dataset', dataset: str = 'CIFAR10', val_proportion:
     torch.save(val, Path(Path(path)) / 'val')
     torch.save(test, Path(Path(path)) / 'test')
 
+
 def load_data(path: str = './dataset'):
     train = torch.load(Path(Path(path)) / 'train')
     val = torch.load(Path(Path(path)) / 'val')
@@ -79,15 +82,16 @@ def load_data(path: str = './dataset'):
 
 
 ADAM_PROFILE = OptimizerProfile(Adam, {
-            "lr": 0.0005,
-            "betas": (0.9, 0.99),
-            "eps": 1e-8
-        })
+    "lr": 0.0005,
+    "betas": (0.9, 0.99),
+    "eps": 1e-8
+})
 
 SGD_PROFILE = OptimizerProfile(SGD, {
-        'lr': 0.0005,
-        'momentum': 0.99
+    'lr': 0.0005,
+    'momentum': 0.99
 })
+
 
 def train_model(model: Callable[..., Module], fname: str, model_params: Dict[str, Any] = {},
                 epochs: int = 100,
@@ -112,20 +116,21 @@ def train_model(model: Callable[..., Module], fname: str, model_params: Dict[str
     clf.set_optimizer(ADAM_PROFILE)
 
     clf.train(epochs,
-               batch_size=batch_size,
-               plugins=[
-                   save_good_models(model_path),
-                   calc_train_val_performance(accuracy),
-                   print_train_val_performance(accuracy),
-                   log_train_val_performance(accuracy),
-                   save_training_message(model_path),
-                   plot_train_val_performance(model_path, 'Modified AlexNet', accuracy, show=False,
-                                              save=True),
-                   elapsed_time(),
-                   save_train_val_performance(model_path, accuracy),
-               ],
-               start_epoch=continue_from + 1
-               )
+              batch_size=batch_size,
+              plugins=[
+                  save_good_models(model_path),
+                  calc_train_val_performance(accuracy),
+                  print_train_val_performance(accuracy),
+                  log_train_val_performance(accuracy),
+                  save_training_message(model_path),
+                  plot_train_val_performance(model_path, 'Modified AlexNet', accuracy, show=False,
+                                             save=True),
+                  elapsed_time(),
+                  save_train_val_performance(model_path, accuracy),
+              ],
+              start_epoch=continue_from + 1
+              )
+
 
 def get_best_epoch(fname: str):
     """
@@ -147,6 +152,7 @@ def get_best_epoch(fname: str):
             break
     return epochs[index_to_chose]
 
+
 def obtain_test_acc(model: Callable[..., Module], fname: str, model_params: Dict[str, Any] = {}, *args, **kwargs):
     best_epoch = get_best_epoch(fname)
     clf = NNClassifier(model, None, None, network_params=model_params)
@@ -156,6 +162,7 @@ def obtain_test_acc(model: Callable[..., Module], fname: str, model_params: Dict
     # one-line from https://stackoverflow.com/questions/49201236/check-the-total-number-of-parameters-in-a-pytorch-model
     print(f"\nTEST SET RESULT FOR {fname}: {acc}\n")
 
+
 def train_and_test(model: Callable[..., Module], fname: str, model_params: Dict[str, Any] = {},
                    epochs: int = 100,
                    continue_from: int = 0,
@@ -164,7 +171,9 @@ def train_and_test(model: Callable[..., Module], fname: str, model_params: Dict[
     train_model(model, fname, model_params, epochs, continue_from, batch_size)
     obtain_test_acc(model, fname, model_params)
 
-def plot_acc(entries: Dict[str, str], title: str, target: str, epochs_to_show: int = 50, plot_train:bool = False, show: bool = False):
+
+def plot_acc(entries: Dict[str, str], title: str, target: str, epochs_to_show: int = 50, plot_train: bool = False,
+             show: bool = False):
     """
 
     :param entries: dict of the form {file_name: label}
@@ -189,9 +198,9 @@ def plot_acc(entries: Dict[str, str], title: str, target: str, epochs_to_show: i
         train = performances['train'][:index]
         if plot_train:
             plt.plot(epochs, val,
-                     label=entries[k]+'-val', alpha=0.5)
+                     label=entries[k] + '-val', alpha=0.5)
             plt.plot(epochs, train,
-                     label=entries[k]+'-train', alpha=0.5)
+                     label=entries[k] + '-train', alpha=0.5)
         else:
             plt.plot(epochs, val,
                      label=entries[k], alpha=0.5)
